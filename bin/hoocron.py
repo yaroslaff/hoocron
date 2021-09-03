@@ -12,6 +12,8 @@ import subprocess
 args = None
 hooks = list()
 
+_stop = object()
+
 
 class Job:
 	def __init__(self, name, cmd):
@@ -46,11 +48,14 @@ def load_submodules():
 	#print("LOAD SUBMODULES:", args)
 	#print(args.module)
 
-	for modinfo in pkgutil.iter_modules():
-		if modinfo.name.startswith('hoocron_'):
-			print("Loading module", modinfo.name)
-			m = importlib.import_module(modinfo.name)
-			hooks.extend(m.hooks)
+	hm = importlib.import_module('hoocron_plugins')
+
+	for modinfo in pkgutil.iter_modules(hm.__path__):
+		mname = 'hoocron_plugins.' + modinfo.name
+
+		print("Loading", mname)
+		m = importlib.import_module(mname)
+		hooks.extend(m.hooks)
 
 def get_args():
 
@@ -60,8 +65,6 @@ def get_args():
 
 	for hook in hooks:
 		hook.add_argument_group(parser)
-
-
 
 	return parser.parse_args()
 
@@ -73,6 +76,10 @@ def master(execute_q):
 		while True:
 			# Get some data
 			(j, source) = execute_q.get()
+			if j is _stop:
+				print("master thread stopped")
+				return
+
 			# Process the data
 			print(f"run {j.name	} from {source}")
 			rc = j.execute()
@@ -87,6 +94,10 @@ def main():
 	load_submodules()
 
 	args = get_args()
+
+	if not args.job:
+		print("No jobs (-j) configured, exit.")
+		return
 
 	for j in args.job:
 		job_name = j[0]
@@ -105,9 +116,27 @@ def main():
 	master_th.start()
 	#cron_th.start()
 
+	started_hooks = 0
 	for hook in hooks:
-		print("Start hook submodule", hook)
-		hook.start(execute_q)
+		if not hook.empty():
+			print("Start hook submodule", hook)
+			hook.start(execute_q)
+			started_hooks += 1
+	
+	if started_hooks:
+		try:
+			master_th.join()
+		except KeyboardInterrupt as e:
+			print("Got keybobard interrupt")
+			for hook in hooks:
+				if hook.running():
+					hook.stop()
+
+			execute_q.put((_stop, 'main'))
+			master_th.join()
+	else:
+		print("Not started any hooks")
+		execute_q.put((_stop, 'main'))
 
 
 main()

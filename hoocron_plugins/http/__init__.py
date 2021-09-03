@@ -1,7 +1,12 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 import os
-from types import MethodDescriptorType
+# from types import MethodDescriptorType
+from queue import Queue, Empty
+
+
+class StopException(Exception):
+    pass
 
 class RequestHandler(BaseHTTPRequestHandler):
 
@@ -11,11 +16,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def my_handler(self):
-
         # Find proper handler
         try:
             j = http_hook.get_job(self.method, self.path)
-            http_hook.kick_job(j, f'HTTP {self.method} request from {self.client_address[0]}')
+            http_hook.kick_job(j, f'<{os.getpid()}> HTTP {self.method} request from {self.client_address[0]}')
 
             self._set_response()
             self.wfile.write('OK\n'.encode('utf8'))
@@ -47,6 +51,8 @@ class HTTPHook:
         self.jobs = list()
         self.port = 5152
         self.address = ''
+        self.th = None
+        self.q = None
 	
     def __repr__(self):
         return f'http ({len(self.jobs)})'
@@ -79,19 +85,45 @@ class HTTPHook:
 
 	# A thread that produces data
     def thread(self):
-        print(f"<{os.getpid()}> started http thread with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
+        print(f"<{os.getpid()}> started http thread on {self.address}:{self.port} with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
         httpd = HTTPServer((self.address, self.port), RequestHandler)
+        httpd.timeout = 1
+        
+        while True:
+            httpd.handle_request()
+            try:
+                self.checkstop()
+            except StopException:
+                httpd.server_close()
+                print('http thread stopped...\n')
+                return
+
+    def empty(self):
+        return not bool(self.jobs)
+
+    def stop(self):
+        self.q.put('stop')
+
+    def checkstop(self):
         try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
+            cmd = self.q.get_nowait()
+            if cmd == 'stop':
+                raise StopException
+        except Empty:
             pass
-        httpd.server_close()
-        print('Stopping httpd...\n')
+
+
+    def running(self):
+        return bool(self.th)
 
     def start(self, execute_q):
-        self.execute_q = execute_q
-        th = Thread(target = self.thread, args = ())
-        th.start()
+        if self.jobs:
+            self.execute_q = execute_q
+            self.q = Queue()
+            self.th = Thread(target = self.thread, args = ())
+            self.th.start()
+        else:
+            print("do not start http thread")
 
 http_hook = HTTPHook()
 
