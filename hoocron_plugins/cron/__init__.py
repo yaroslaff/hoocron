@@ -1,5 +1,6 @@
 import time
 import os
+import sys
 from threading import Thread
 from queue import Queue, Empty
 
@@ -44,7 +45,11 @@ class CronHook:
         for cp in args.cron_period:
             job_name = cp[0]
             hook_spec = cp[1]
-            job = jobs[job_name]
+            try:
+                job = jobs[job_name]
+            except KeyError:
+                print("ERROR: Not found job", job_name)
+                sys.exit(1)
 
             try:
                 period = int(hook_spec)
@@ -78,7 +83,7 @@ class CronHook:
 	# A thread that produces data
     def thread(self, execute_q):
 
-        print(f"<{os.getpid()}> started cron thread with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
+        print(f"started cron thread with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
 
         while True:
             try:

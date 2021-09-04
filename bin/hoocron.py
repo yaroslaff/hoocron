@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-from queue import Queue
+from queue import Empty, Queue
 from threading import Thread
 import time
 import os
 import importlib
 import pkgutil
 import argparse
+import shlex
 import subprocess
 
 args = None
@@ -19,14 +20,54 @@ class Job:
 	def __init__(self, name, cmd):
 		self.name = name
 		self.cmd = cmd
+		self.rc = None
+		self._running = False
+		self.policy = 'ignore' # ignore / asap
+		self._asap = False
 
 		# hook-specific data
 		self.hook_name = None
 		self.hook = None
+		
+	def running(self):
+		return self._running
 
-	def execute(self):
-		rc = subprocess.run(self.cmd)
-		return rc
+	def finished(self):
+		return self.rc is not None
+
+	def get_rc(self):
+		return self.rc
+
+	def cleanup(self):
+		""" clean after execution """
+		self.rc = None
+		self._running = False
+		if self._asap:
+			self._asap = False
+			print(f"run delayed task {self.name} asap")
+			self.start()
+
+	def _execution(self):
+		if not self._running:
+			# normal case
+			self._running = True # race condition possible, use semaphore
+			self.rc = subprocess.run(self.cmd)
+		else:
+			# duplicate run
+			if self.policy == 'ignore':
+				print(f"Job {self.name} already running, ignore request")
+			elif self.policy == 'asap':
+				print(f"Job {self.name} already running, schedule asap")
+				self._asap = True
+			else:
+				print("Unknown policy", self.policy)
+			
+
+	def start(self):
+		# rc = subprocess.run(self.cmd)
+		self.exec_th = Thread(target=self._execution)
+		self.rc = None
+		self.exec_th.start()
 
 	@staticmethod
 	def filter(jobs, hook_name):
@@ -61,7 +102,7 @@ def get_args():
 
 	parser = argparse.ArgumentParser(description='HooCron, Cron with Hooks')
 	parser.add_argument('-j', '--job', nargs='+', action='append', help='-j ECHO /bin/echo "zzzz"')
-	parser.add_argument('-m', '--module', metavar='MODULE', nargs='+', help='load hoocron_MODULE extension module')
+	parser.add_argument('--policy', nargs=2, metavar=('JOB','POLICY'), action='append', help='policy what to do when request comes when job is running. Either "ignore" or "asap"')
 
 	for hook in hooks:
 		hook.add_argument_group(parser)
@@ -74,16 +115,37 @@ def get_args():
 def master(execute_q):
 	try:
 		while True:
-			# Get some data
-			(j, source) = execute_q.get()
-			if j is _stop:
-				print("master thread stopped")
-				return
 
-			# Process the data
-			print(f"run {j.name	} from {source}")
-			rc = j.execute()
-			print(f"return code for {j.name} is {rc.returncode}")
+			worked = False
+
+			# Get some data
+			try:
+				(j, source) = execute_q.get_nowait()
+
+				if j is _stop:
+					print("master thread stopped")
+					return
+
+				# Process the data
+				print(f"run {j.name} from {source}")
+				rc = j.start()
+				# print(f"return code for {j.name} is {rc.returncode}")
+				worked = True
+
+			except Empty:
+				pass
+
+			
+			# check jobs
+			for j in jobs.values():
+				if j.finished():
+					print(f"Return code for {j.name}: {j.get_rc().returncode}")
+					j.cleanup()
+
+
+			if not worked:
+				time.sleep(1)
+
 
 	except KeyboardInterrupt:
 		print("Master got Keboard Interrupt")
@@ -102,7 +164,17 @@ def main():
 	for j in args.job:
 		job_name = j[0]
 		job_command = j[1:]
+		if len(job_command)==1:
+			job_command = shlex.split(job_command[0])
+
 		jobs[job_name] = Job(job_name, job_command)
+
+	if args.policy:
+		for name, policy in args.policy:
+			job = jobs[name]
+			if policy in ['asap', 'ignore']:
+				job.policy = policy
+			
 
 	for hook in hooks:
 		hook.configure(jobs, args)
@@ -119,7 +191,7 @@ def main():
 	started_hooks = 0
 	for hook in hooks:
 		if not hook.empty():
-			print("Start hook submodule", hook)
+			# print("Start hook submodule", hook)
 			hook.start(execute_q)
 			started_hooks += 1
 	

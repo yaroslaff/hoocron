@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 import os
+import sys
 # from types import MethodDescriptorType
 from queue import Queue, Empty
 
@@ -19,7 +20,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         # Find proper handler
         try:
             j = http_hook.get_job(self.method, self.path)
-            http_hook.kick_job(j, f'<{os.getpid()}> HTTP {self.method} request from {self.client_address[0]}')
+            http_hook.kick_job(j, f'HTTP {self.method} request from {self.client_address[0]}')
 
             self._set_response()
             self.wfile.write('OK\n'.encode('utf8'))
@@ -68,11 +69,25 @@ class HTTPHook:
         self.address = args.http_address
         self.port = args.http_port
 
+
+
         for name in args.get:
-            self.jobs.append(HTTPJob(jobs[name], 'GET'))
+            try:
+                j = jobs[name]
+            except KeyError:
+                print("ERROR: Not found job", name)
+                sys.exit(1)
+
+            self.jobs.append(HTTPJob(j, 'GET'))
 
         for name in args.post:
-            self.jobs.append(HTTPJob(jobs[name], 'POST'))
+            try:
+                j = jobs[name]
+            except KeyError:
+                print("ERROR: Not found job", name)
+                sys.exit(1)
+
+            self.jobs.append(HTTPJob(j, 'POST'))
 
     def get_job(self, method, path):
         for hj in self.jobs:
@@ -85,7 +100,7 @@ class HTTPHook:
 
 	# A thread that produces data
     def thread(self):
-        print(f"<{os.getpid()}> started http thread on {self.address}:{self.port} with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
+        print(f"started http thread on {self.address}:{self.port} with {len(self.jobs)} jobs: {' '.join(list(j.job.name for j in self.jobs))}")
         httpd = HTTPServer((self.address, self.port), RequestHandler)
         httpd.timeout = 1
         
