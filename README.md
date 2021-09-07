@@ -27,7 +27,7 @@ Loading hoocron_plugin.cron
 Loading hoocron_plugin.http
 started cron thread with 2 jobs: J1 J2
 
-# immediately
+### immediately
 run J1 from cron
 run J2 from cron
 1
@@ -35,7 +35,7 @@ a b c
 Return code for J1: 0
 Return code for J2: 0
 
-## after 5 seconds
+### after 5 seconds
 run J1 from cron
 1
 Return code for J1: 0
