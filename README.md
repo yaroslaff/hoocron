@@ -9,7 +9,7 @@ pip3 install hoocron
 # Usage examples
 
 ## Simple cron
-We will run program /bin/touch with different arguments.
+We will run 'echo' with arguments.
 
 Simplest case:
 ~~~shell
@@ -24,9 +24,9 @@ run TICK from cron
 Return code for TICK: 0
 ~~~
 
-This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron. Here we have job named 'J' which runs `/bin/touch /tmp/touch` and configured cron period (-p) for job J to 20 seconds.
+This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron. Here we have job named 'TICK' which runs `echo ...tick-tock...` and configured cron period (-p) for job TICK to 10 seconds.
 
-We can run many jobs at once, lets add also 'echo'
+We can run many jobs at once, lets add another echo
 
 ~~~shell
 $ hoocron.py -j Echo5 echo tick-tock 5 seconds -j Echo10 echo tick-tock 10 seconds -p Echo5 5 -p Echo10 10
@@ -96,9 +96,9 @@ But hoocron can not prevent same script started from any other source (e.g. from
 
 There are two policies for job, `ignore` (default) and `asap`. 
 
-With policy `ignore`, if hoocron gets request to start job, and this job is already running, request is ignored.
+With policy `ignore`, if hoocron gets request to start job and this job is already running, request is ignored.
 
-With policy `asap`, if hoocron gets request to start job, and this job is already running, it will set special flag and will run same job again immediately after first instance of job is finished (and again, new request will raise flag again). Note, if there are many requests during one execution of job, it will be executed just once. 
+With policy `asap`, if hoocron gets request to start job and this job is already running, it will set special flag and will run same job again immediately after first instance of job is finished (and again, new request will raise flag again). Note, if there are many requests during one execution of job, it will be executed just once. 
 
 To see difference, compare ignore policy (default) with this command:
 ~~~shell
