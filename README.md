@@ -1,5 +1,5 @@
 # hoocron
-Cron with different triggers to kick immediate execution of jobs
+Hoocron is cron alternative with different hooks to trigger immediate execution of jobs
 
 # Installation
 ~~~
@@ -16,12 +16,11 @@ Simplest case:
 hoocron.py -j J /bin/touch /tmp/touch -p J 20s
 ~~~
 
-This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron.
+This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron. Here we have job named 'J' which runs `/bin/touch /tmp/touch` and configured cron period (-p) for job J to 20 seconds.
 
 We can run many jobs at once, lets add also 'echo'
 
-
-~~~
+~~~shell
 $ bin/hoocron.py -j J1 'echo 1' -j J2 'echo a b c' -p J1 5 -p J2 10
 Loading hoocron_plugin.cron
 Loading hoocron_plugin.http
@@ -52,11 +51,11 @@ Return code for J2: 0
 
 ## Webhook HTTP trigger
 
-built-in `http` plugin provides HTTP GET and HTTP POST interface to trigger cron executions.
+HTTP plugin provides HTTP GET and HTTP POST interface to start cron job right now.
 
 Now, lets make it more interesting, we will also run job if get HTTP request using `--http-get` option (or just `--get`).
 
-~~~
+~~~shell
 $ hoocron.py -j J /bin/touch /tmp/touch -p J 5m --get J
 Loading hoocron_plugin.cron
 Loading hoocron_plugin.http
@@ -69,10 +68,11 @@ Return code for J: 0
 
 Hoocron immediately runs Job (because cron plugin runs each job for first time right from start) and waits 5 minutes for next run. We do not want this, so we do:
 
-~~~
+~~~shell
 $ curl http://localhost:5152/J
 OK
 ~~~
+
 This triggers hoocron execution of job J:
 ~~~
 run J from HTTP GET request from 127.0.0.1
@@ -96,6 +96,15 @@ With policy `ignore`, if hoocron gets request to start job, and this job is alre
 
 With policy `asap`, if hoocron gets request to start job, and this job is already running, it will set special flag and will run same job again immediately after first instance of job is finished (and again, new request will raise flag again). Note, if there are many requests during one execution of job, it will be executed just once. 
 
+To see difference, compare ignore policy (default) with this command:
+~~~shell
+hoocron.py -j J sleep 10 -p J 3
+~~~
+
+and same with `asap` policy
+~~~shell
+hoocron.py -j J sleep 10 -p J 3 --policy J asap
+~~~
 
 # See also
 
