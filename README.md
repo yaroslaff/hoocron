@@ -50,7 +50,9 @@ Return code for J2: 0
 ~~~
 
 
-## Cron with webhook trigger
+## Webhook HTTP trigger
+
+built-in `http` plugin provides HTTP GET and HTTP POST interface to trigger cron executions.
 
 Now, lets make it more interesting, we will also run job if get HTTP request using `--http-get` option (or just `--get`).
 
@@ -77,7 +79,23 @@ run J from HTTP GET request from 127.0.0.1
 Return code for J: 0
 ~~~
 
+### Cron with HTTP POST method
 If you want to use HTTP POST method, use `--post` (or `--http-post` alias) instead of `--get`.
+
+### Running in production
+If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.
+
+# Throttling and policies
+Hoocron guarantees that only one copy of job (with same job name) is running at same time (same jobs will not overlap): hoocron will never start second copy of same job until first one is finished. 
+
+But hoocron can not prevent same script started from any other source (e.g. from shell).
+
+There are two policies for job, `ignore` (default) and `asap`. 
+
+With policy `ignore`, if hoocron gets request to start job, and this job is already running, request is ignored.
+
+With policy `asap`, if hoocron gets request to start job, and this job is already running, it will set special flag and will run same job again immediately after first instance of job is finished (and again, new request will raise flag again). Note, if there are many requests during one execution of job, it will be executed just once. 
+
 
 # See also
 
