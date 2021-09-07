@@ -12,8 +12,16 @@ pip3 install hoocron
 We will run program /bin/touch with different arguments.
 
 Simplest case:
-~~~
-hoocron.py -j J /bin/touch /tmp/touch -p J 20s
+~~~shell
+$ hoocron.py -j TICK echo ...tick-tock... -p TICK 10s
+started cron thread with 1 jobs: TICK
+run TICK from cron
+...tick-tock...
+Return code for TICK: 0
+
+run TICK from cron
+...tick-tock...
+Return code for TICK: 0
 ~~~
 
 This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron. Here we have job named 'J' which runs `/bin/touch /tmp/touch` and configured cron period (-p) for job J to 20 seconds.
@@ -21,31 +29,27 @@ This command configures *job* (what to run, command and arguments) and *hook* (w
 We can run many jobs at once, lets add also 'echo'
 
 ~~~shell
-$ bin/hoocron.py -j J1 'echo 1' -j J2 'echo a b c' -p J1 5 -p J2 10
-Loading hoocron_plugin.cron
-Loading hoocron_plugin.http
-started cron thread with 2 jobs: J1 J2
+$ hoocron.py -j Echo5 echo tick-tock 5 seconds -j Echo10 echo tick-tock 10 seconds -p Echo5 5 -p Echo10 10
 
-### immediately
-run J1 from cron
-run J2 from cron
-1
-a b c
-Return code for J1: 0
-Return code for J2: 0
+### immediately, 0s from start
+run Echo5 from cron
+run Echo10 from cron
+tick-tock 5 seconds
+tick-tock 10 seconds
+Return code for Echo5: 0
+Return code for Echo10: 0
 
-### after 5 seconds
-run J1 from cron
-1
-Return code for J1: 0
+### 5s from start
+run Echo5 from cron
+tick-tock 5 seconds
+Return code for Echo5: 0
 
-### after 10 seconds
-run J1 from cron
-run J2 from cron
-1
-a b c
-Return code for J1: 0
-Return code for J2: 0
+### 10s from start
+run Echo5 from cron
+run Echo10 from cron
+tick-tock 5 seconds
+tick-tock 10 seconds
+...
 ~~~
 
 
@@ -82,7 +86,7 @@ Return code for J: 0
 ### Cron with HTTP POST method
 If you want to use HTTP POST method, use `--post` (or `--http-post` alias) instead of `--get`.
 
-### Running in production
+### Running hoocron with http in production
 If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.
 
 # Throttling and policies
