@@ -5,6 +5,7 @@ import sys
 # from types import MethodDescriptorType
 from queue import Queue, Empty
 
+from hoocron_plugin import HoocronHookBase
 
 class StopException(Exception):
     pass
@@ -47,7 +48,7 @@ class HTTPJob:
         self.method = method
 
 
-class HTTPHook:
+class HTTPHook(HoocronHookBase):
     def __init__(self):
         self.jobs = list()
         self.port = 5152
@@ -60,8 +61,8 @@ class HTTPHook:
     
     def add_argument_group(self, parser):
         g = parser.add_argument_group('HTTP web hook')
-        g.add_argument('--get', '--http-get', metavar='CODENAME', default=list(), action='append')
-        g.add_argument('--post', '--http-post', metavar='CODENAME', default=list(), action='append')
+        g.add_argument('--get', '--http-get', metavar='JOB', default=list(), action='append')
+        g.add_argument('--post', '--http-post', metavar='JOB', default=list(), action='append')
         g.add_argument('--http-address', metavar='ADDRESS', default='')
         g.add_argument('--http-port', type=int, metavar='PORT', default=5152)
 

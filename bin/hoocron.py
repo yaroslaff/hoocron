@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from queue import Empty, Queue
-from threading import Thread
+from threading import Thread, get_ident
 import time
 import os
 import importlib
@@ -66,7 +66,7 @@ class Job:
 	def start(self):
 		# rc = subprocess.run(self.cmd)
 		self.exec_th = Thread(target=self._execution)
-		self.rc = None
+		# self.rc = None
 		self.exec_th.start()
 
 	@staticmethod
@@ -86,13 +86,22 @@ def load_submodules():
 	sub_parser.add_argument('-m', '--module', metavar='MODULE', nargs='+', help='load hoocron_MODULE extension module')
 
 	args, extras = sub_parser.parse_known_args()
-	#print("LOAD SUBMODULES:", args)
-	#print(args.module)
+	if args.module is not None:
+		for m in args.module:
+			if not m.startswith('hoocron_plugin.'):
+				mname = 'hoocron_plugin.' + m
+			else:
+				mname = m
 
-	hm = importlib.import_module('hoocron_plugins')
+			print("Loading", mname)
+			m = importlib.import_module(mname)
+			hooks.extend(m.hooks)
+
+	# Load all plugins by name prefix
+	hm = importlib.import_module('hoocron_plugin')
 
 	for modinfo in pkgutil.iter_modules(hm.__path__):
-		mname = 'hoocron_plugins.' + modinfo.name
+		mname = 'hoocron_plugin.' + modinfo.name
 
 		print("Loading", mname)
 		m = importlib.import_module(mname)
@@ -102,6 +111,7 @@ def get_args():
 
 	parser = argparse.ArgumentParser(description='HooCron, Cron with Hooks')
 	parser.add_argument('-j', '--job', nargs='+', action='append', help='-j ECHO /bin/echo "zzzz"')
+	parser.add_argument('-s', '--sleep', type=float, default=1, help='Sleep period (for modules which polls)')
 	parser.add_argument('--policy', nargs=2, metavar=('JOB','POLICY'), action='append', help='policy what to do when request comes when job is running. Either "ignore" or "asap"')
 
 	for hook in hooks:
@@ -211,4 +221,6 @@ def main():
 		execute_q.put((_stop, 'main'))
 
 
-main()
+if __name__ == '__main__':
+	main()
+	

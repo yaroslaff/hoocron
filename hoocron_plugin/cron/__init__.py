@@ -4,6 +4,8 @@ import sys
 from threading import Thread
 from queue import Queue, Empty
 
+from hoocron_plugin import HoocronHookBase
+
 class StopException(Exception):
     pass
 
@@ -25,7 +27,7 @@ class CronJob:
     def executed(self):
         self.last_executed = int(time.time())
 
-class CronHook:
+class CronHook(HoocronHookBase):
     def __init__(self):
         self.jobs = list()
         self.th = None
@@ -36,7 +38,7 @@ class CronHook:
 
     def add_argument_group(self, parser):
         g = parser.add_argument_group('Periodical hook (cron)')
-        g.add_argument('-p', '--cron-period', nargs=2, metavar=('CODENAME', 'TIMESPEC'), action='append', help='-p ECHO 10s')
+        g.add_argument('-p', '--cron-period', nargs=2, metavar=('JOB', 'TIMESPEC'), action='append', help='-p ECHO 10s')
 	
     def configure(self, jobs, args):
         if not args.cron_period:
