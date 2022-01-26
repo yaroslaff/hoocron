@@ -55,6 +55,7 @@ class HTTPHook(HoocronHookBase):
         self.address = ''
         self.th = None
         self.q = None
+        self.name = 'http'
 	
     def __repr__(self):
         return f'http ({len(self.jobs)})'

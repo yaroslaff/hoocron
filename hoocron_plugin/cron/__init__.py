@@ -32,6 +32,7 @@ class CronHook(HoocronHookBase):
         self.jobs = list()
         self.th = None
         self.q = None
+        self.name = 'cron'
 	
     def __repr__(self):
         return f'cron ({len(self.jobs)})'

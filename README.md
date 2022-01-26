@@ -6,85 +6,77 @@ Hoocron is cron alternative with different hooks to trigger immediate execution 
 pip3 install hoocron
 ~~~
 
+or, install right from repo:
+~~~
+pip3 install git+https://github.com/yaroslaff/hoocron
+~~~
+
 # Usage examples
 
-## Simple cron
-We will run 'echo' with arguments.
+## Simplest cron
 
-Simplest case:
-~~~shell
-$ hoocron.py -j TICK echo ...tick-tock... -p TICK 10s
-started cron thread with 1 jobs: TICK
-run TICK from cron
-...tick-tock...
-Return code for TICK: 0
-
-run TICK from cron
-...tick-tock...
-Return code for TICK: 0
-~~~
-
-This command configures *job* (what to run, command and arguments) and *hook* (when to run). This very similar to cron. Here we have job named 'TICK' which runs `echo ...tick-tock...` and configured cron period (-p) for job TICK to 10 seconds.
-
-We can run many jobs at once, lets add another echo
+Hoocron has built-in dummy job 'TICK' which just print 'tick!' and report how long hoocron were running, lets call it every 5s:
 
 ~~~shell
-$ hoocron.py -j Echo5 echo tick-tock 5 seconds -j Echo10 echo tick-tock 10 seconds -p Echo5 5 -p Echo10 10
-
-### immediately, 0s from start
-run Echo5 from cron
-run Echo10 from cron
-tick-tock 5 seconds
-tick-tock 10 seconds
-Return code for Echo5: 0
-Return code for Echo10: 0
-
-### 5s from start
-run Echo5 from cron
-tick-tock 5 seconds
-Return code for Echo5: 0
-
-### 10s from start
-run Echo5 from cron
-run Echo10 from cron
-tick-tock 5 seconds
-tick-tock 10 seconds
+$ hoocron.py -p TICK 5s
 ...
+run TICK from cron
+Tick! (uptime: 1 seconds)
+Result(TICK): ticked
+
+run TICK from cron
+Tick! (uptime: 5 seconds)
+Result(TICK): ticked
 ~~~
 
+Surely we can replace dummy and useless job TICK with our better useless job MYTICK:
+
+~~~shell
+$ hoocron.py -j MYTICK echo my tick is better -p MYTICK 5s
+...
+run MYTICK from cron
+my tick is better
+Result(MYTICK): 0
+
+run MYTICK from cron
+my tick is better
+Result(MYTICK): 0
+~~~
+
+This command configures *job* (what to run, command and arguments, `-j`) and *hook* (when to run, `-p` for cron-alike periodical run). This very similar to cron. 
+
+We can run many jobs at once, lets make two echo jobs:
+~~~shell
+$ hoocron.py -j J1 echo every5 -j J2 echo every10 -p J1 5s -p J2 10s | grep every
+every5
+every10
+every5
+every5
+every10
+every5
+every5
+every10
+~~~
 
 ## Webhook HTTP trigger
 
+Most important feature of hoocron is different hooks which you can bind to jobs. 
+
 HTTP plugin provides HTTP GET and HTTP POST interface to start cron job right now.
 
-Now, lets make it more interesting, we will also run job if get HTTP request using `--http-get` option (or just `--get`).
+Now, lets make it more interesting, we will also run job after getting HTTP request using `--get` option.
 
-~~~shell
-$ hoocron.py -j J /bin/touch /tmp/touch -p J 5m --get J
-Loading hoocron_plugin.cron
-Loading hoocron_plugin.http
-Loading hoocron_plugin.redis
-started cron thread with 1 jobs: J
-started http thread on :5152 with 1 jobs: J
-run J from cron
-Return code for J: 0
-~~~
+run `hoocron.py --get TICK` and (in other session) run `curl http://localhost:5152/TICK`.
 
-Hoocron immediately runs Job (because cron plugin runs each job for first time right from start) and waits 5 minutes for next run. We do not want this, so we do:
-
-~~~shell
-$ curl http://localhost:5152/J
-OK
-~~~
-
-This triggers hoocron execution of job J:
-~~~
-run J from HTTP GET request from 127.0.0.1
-Return code for J: 0
-~~~
+So, instead of running some cron job every N minutes, you may run it asynchronously, on demand. And you can combine both: `hoocron.py --get TICK -p TICK 1h` will run tick every hour, but you can always trigger it over HTTP.
 
 ### Cron with HTTP POST method
-If you want to use HTTP POST method, use `--post` (or `--http-post` alias) instead of `--get`.
+If you want to use HTTP POST method, use `--post` instead of `--get`.
+
+### Other asynchronous hooks
+Hoocron is easy to extend with other python modules. For example, every app in any programming language can trigger hoocron jobs 
+
+[Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis)
 
 ### Running hoocron with http in production
 If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.

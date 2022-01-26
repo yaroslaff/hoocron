@@ -13,7 +13,7 @@ def read(fname):
 setup(
     name='hoocron',
     version='0.0.4',
-    packages=['hoocron_plugin', 'hoocron_plugin.cron', 'hoocron_plugin.http'],
+    packages=['hoocron_plugin', 'hoocron_plugin.cron', 'hoocron_plugin.http', 'hoocron_plugin.tick'],
     scripts=['bin/hoocron.py'],
 
     install_requires=['requests'],

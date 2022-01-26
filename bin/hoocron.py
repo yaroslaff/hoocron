@@ -4,11 +4,14 @@ from queue import Empty, Queue
 from threading import Thread, get_ident
 import time
 import os
+import sys
 import importlib
 import pkgutil
 import argparse
 import shlex
 import subprocess
+
+from hoocron_plugin import HoocronHookBase, HoocronJobBase
 
 args = None
 hooks = list()
@@ -20,7 +23,7 @@ class Job:
 	def __init__(self, name, cmd):
 		self.name = name
 		self.cmd = cmd
-		self.rc = None
+		self._result = None
 		self._running = False
 		self.policy = 'ignore' # ignore / asap
 		self._asap = False
@@ -32,15 +35,16 @@ class Job:
 	def running(self):
 		return self._running
 
-	def finished(self):
-		return self.rc is not None
+	def result(self):
+		return self._result 
 
-	def get_rc(self):
-		return self.rc
+	def finished(self) -> bool:
+		""" return true if job is *just* finished and need cleanup """
+		return self._running and self._result is not None
 
 	def cleanup(self):
 		""" clean after execution """
-		self.rc = None
+		self._result = None
 		self._running = False
 		if self._asap:
 			self._asap = False
@@ -51,7 +55,11 @@ class Job:
 		if not self._running:
 			# normal case
 			self._running = True # race condition possible, use semaphore
-			self.rc = subprocess.run(self.cmd)
+			if isinstance(self.cmd, HoocronJobBase):
+				self._result = self.cmd.run()
+			else:
+				self._result = subprocess.run(self.cmd).returncode
+
 		else:
 			# duplicate run
 			if self.policy == 'ignore':
@@ -74,7 +82,7 @@ class Job:
 		return list(filter(lambda j: j.hook_name == hook_name, jobs.values()))
 
 	def __repr__(self):
-		return f'{self.name}: {self.cmd}'
+		return self.name
 
 
 jobs = dict()
@@ -103,16 +111,28 @@ def load_submodules():
 	for modinfo in pkgutil.iter_modules(hm.__path__):
 		mname = 'hoocron_plugin.' + modinfo.name
 
-		print("Loading", mname)
 		m = importlib.import_module(mname)
-		hooks.extend(m.hooks)
+		if hasattr(m, 'hooks'): 
+			for h in m.hooks:
+				print(f"Load hook {h.name} from {mname}")
+				hooks.append(h)
+
+		if hasattr(m, 'jobs'): 
+			for j in m.jobs:
+				print(f"Load job {j.name} from {mname}")
+				jobs[j.name] = Job(j.name, j)
+
+
 
 def get_args():
+
+	def_activate = os.getenv('ACTIVATE','').split(' ')
 
 	parser = argparse.ArgumentParser(description='HooCron, Cron with Hooks')
 	parser.add_argument('-j', '--job', nargs='+', action='append', help='-j ECHO /bin/echo "zzzz"')
 	parser.add_argument('-s', '--sleep', type=float, default=1, help='Sleep period (for modules which polls)')
 	parser.add_argument('--policy', nargs=2, metavar=('JOB','POLICY'), action='append', help='policy what to do when request comes when job is running. Either "ignore" or "asap"')
+	parser.add_argument('-a','--activate', metavar='JOB', action='store', nargs='+', default=def_activate, help='activate these jobs with their default parameters')
 
 	for hook in hooks:
 		hook.add_argument_group(parser)
@@ -149,7 +169,7 @@ def master(execute_q):
 			# check jobs
 			for j in jobs.values():
 				if j.finished():
-					print(f"Return code for {j.name}: {j.get_rc().returncode}")
+					print(f"Result({j.name}): {j.result()}\n")
 					j.cleanup()
 
 
@@ -163,28 +183,45 @@ def master(execute_q):
 def main():	
 	global args, jobs
 	
+	print(f"Starting hoocron pid: {os.getpid()}")
+
 	load_submodules()
 
 	args = get_args()
 
-	if not args.job:
-		print("No jobs (-j) configured, exit.")
-		return
+	if args.job:
+		for j in args.job:
+			job_name = j[0]
+			job_command = j[1:]
+			if len(job_command)==1:
+				job_command = shlex.split(job_command[0])
 
-	for j in args.job:
-		job_name = j[0]
-		job_command = j[1:]
-		if len(job_command)==1:
-			job_command = shlex.split(job_command[0])
-
-		jobs[job_name] = Job(job_name, job_command)
+			jobs[job_name] = Job(job_name, job_command)
 
 	if args.policy:
 		for name, policy in args.policy:
 			job = jobs[name]
 			if policy in ['asap', 'ignore']:
 				job.policy = policy
-			
+
+	for jobname in args.activate:
+		if not jobname:
+			# skip empty element ''
+			continue
+		try:
+			job = jobs[jobname]
+			activation = job.cmd.activate()
+		except KeyError:
+			print(f"No such job {jobname!r}" )
+			sys.exit(1)
+		except AttributeError:
+			print(f"Cannot activate custom job {jobname!r}")
+			sys.exit(1)
+		for k, val in activation.items():
+			try:
+				getattr(args, k).extend(val)
+			except AttributeError:
+				setattr(args, k, val)
 
 	for hook in hooks:
 		hook.configure(jobs, args)
