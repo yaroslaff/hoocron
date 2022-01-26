@@ -15,7 +15,7 @@ pip3 install git+https://github.com/yaroslaff/hoocron
 
 ## Simplest cron
 
-Hoocron has built-in dummy job 'TICK' which just print 'tick!' and report how long hoocron were running, lets call it every 5s:
+Hoocron has built-in dummy job `TICK` which just print 'tick!' and report how long hoocron were running, lets call it with `--period` 5s:
 
 ~~~shell
 $ hoocron.py -p TICK 5s
