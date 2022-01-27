@@ -74,9 +74,7 @@ So, instead of running some cron job every N minutes, you may run it asynchronou
 If you want to use HTTP POST method, use `--post` instead of `--get`.
 
 ### Other asynchronous hooks
-Hoocron is easy to extend with other python modules. For example, every app in any programming language can trigger hoocron jobs 
-
-[Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis)
+Hoocron is easy to extend with other python modules. For example, every app in any programming language (supporting [redis](https://redis.io/)) can trigger hoocron jobs doing `LPUSH` redis command. (Need to install [Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis) for hoocron)
 
 ### Running hoocron with http in production
 If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.
