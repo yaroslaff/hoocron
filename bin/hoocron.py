@@ -107,20 +107,25 @@ def load_submodules():
 
 	# Load all plugins by name prefix
 	hm = importlib.import_module('hoocron_plugin')
+	loaded_hooks = list()
+	loaded_jobs = list()
 
 	for modinfo in pkgutil.iter_modules(hm.__path__):
 		mname = 'hoocron_plugin.' + modinfo.name
 
 		m = importlib.import_module(mname)
+
 		if hasattr(m, 'hooks'): 
 			for h in m.hooks:
-				print(f"Load hook {h.name} from {mname}")
 				hooks.append(h)
+				loaded_hooks.append(h.name)
 
 		if hasattr(m, 'jobs'): 
 			for j in m.jobs:
-				print(f"Load job {j.name} from {mname}")
 				jobs[j.name] = Job(j.name, j)
+				loaded_jobs.append(j.name)
+		
+	print(f"Loaded Hooks: {', '.join(loaded_hooks)} Jobs: {', '.join(loaded_jobs)}")
 
 
 
