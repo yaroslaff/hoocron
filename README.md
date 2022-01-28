@@ -76,6 +76,8 @@ If you want to use HTTP POST method, use `--post` instead of `--get`.
 ### Other asynchronous hooks
 Hoocron is easy to extend with other python modules. For example, every app in any programming language (supporting [redis](https://redis.io/)) can trigger hoocron jobs doing `LPUSH` redis command. (Need to install [Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis) for hoocron)
 
+[Websocket](https://github.com/yaroslaff/hoocron-plugin-websocket) plugin connects to websocket (SocketIO) server (usually [ws-emit](https://github.com/yaroslaff/ws-emit)) and expect signals from server. For example, to run some job when server will have new data.
+
 ### Running hoocron with http in production
 If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.
 
@@ -102,4 +104,5 @@ hoocron.py -j J sleep 10 -p J 3 --policy J asap
 
 # See also
 
-[Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis)
+- [Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis)
+- [Webhook plugin](https://github.com/yaroslaff/hoocron-plugin-websocket)
