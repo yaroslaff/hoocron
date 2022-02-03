@@ -12,9 +12,11 @@ def read(fname):
 
 setup(
     name='hoocron',
-    version='0.0.4',
+    version='0.0.5',
     packages=['hoocron_plugin', 'hoocron_plugin.cron', 'hoocron_plugin.http', 'hoocron_plugin.tick'],
     scripts=['bin/hoocron.py'],
+
+    data_files = [ ('/etc/systemd/system', ['debian/hoocron.service']) ],
 
     install_requires=['requests'],
 

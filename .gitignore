@@ -130,3 +130,5 @@ dmypy.json
 
 deb_dist/
 hoocron-*.tar.gz
+*.deb
+TODO

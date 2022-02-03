@@ -73,13 +73,28 @@ So, instead of running some cron job every N minutes, you may run it asynchronou
 ### Cron with HTTP POST method
 If you want to use HTTP POST method, use `--post` instead of `--get`.
 
-### Other asynchronous hooks
+## Other asynchronous hooks
 Hoocron is easy to extend with other python modules. For example, every app in any programming language (supporting [redis](https://redis.io/)) can trigger hoocron jobs doing `LPUSH` redis command. (Need to install [Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis) for hoocron)
 
 [Websocket](https://github.com/yaroslaff/hoocron-plugin-websocket) plugin connects to websocket (SocketIO) server (usually [ws-emit](https://github.com/yaroslaff/ws-emit)) and expect signals from server. For example, to run some job when server will have new data.
 
+## Change UID/GID
+User `-u USER GROUP` for this:
+~~~
+$ sudo hoocron.py -j ID id -p ID 10 -u ID www-data www-data
+Starting hoocron pid: 263973
+Loaded Hooks: cron, http, redis, websocket Jobs: TICK
+Job ID will run as www-data(33):www-data(33)
+started cron thread with 1 jobs: ID
+run ID from cron
+uid=33(www-data) gid=33(www-data) groups=33(www-data),0(root)
+Result(ID): 0
+~~~
+
 ### Running hoocron with http in production
 If you need extra HTTP features, such as https support or additional access control, run hoocron behind real webserver working as reverse proxy.
+
+##
 
 # Throttling and policies
 Hoocron guarantees that only one copy of job (with same job name) is running at same time (same jobs will not overlap): hoocron will never start second copy of same job until first one is finished. 
@@ -106,3 +121,13 @@ hoocron.py -j J sleep 10 -p J 3 --policy J asap
 
 - [Redis plugin](https://github.com/yaroslaff/hoocron-plugin-redis)
 - [Webhook plugin](https://github.com/yaroslaff/hoocron-plugin-websocket)
+
+# Developer cheatsheet
+
+Build deb (via fpm):
+~~~
+apt-get install ruby ruby-dev rubygems build-essential
+gem install -N fpm
+~~~
+
+`fpm --no-auto-depends --deb-systemd debian/hoocron.service --deb-systemd-enable --deb-systemd-auto-start -s python -t deb .`

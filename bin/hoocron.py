@@ -10,6 +10,8 @@ import pkgutil
 import argparse
 import shlex
 import subprocess
+import pwd
+import grp
 
 from hoocron_plugin import HoocronHookBase, HoocronJobBase
 
@@ -27,6 +29,10 @@ class Job:
 		self._running = False
 		self.policy = 'ignore' # ignore / asap
 		self._asap = False
+		self.user = None
+		self.group = None
+		self.uid = None
+		self.gid = None
 
 		# hook-specific data
 		self.hook_name = None
@@ -52,13 +58,27 @@ class Job:
 			self.start()
 
 	def _execution(self):
+
+		def demote(user_uid, user_gid):
+			def set_ids():
+				os.setgid(user_gid)
+				os.setuid(user_uid)
+
+			return set_ids
+
+
 		if not self._running:
 			# normal case
 			self._running = True # race condition possible, use semaphore
 			if isinstance(self.cmd, HoocronJobBase):
 				self._result = self.cmd.run()
 			else:
-				self._result = subprocess.run(self.cmd).returncode
+				if self.user:
+					preexec_fn = demote(self.uid, self.gid)
+				else:
+					preexec_fn = None
+
+				self._result = subprocess.run(self.cmd, preexec_fn=preexec_fn).returncode
 
 		else:
 			# duplicate run
@@ -80,6 +100,15 @@ class Job:
 	@staticmethod
 	def filter(jobs, hook_name):
 		return list(filter(lambda j: j.hook_name == hook_name, jobs.values()))
+
+	def set_user_group(self, user, group):
+		self.user = user
+		self.group = group
+
+		self.uid = pwd.getpwnam(self.user).pw_uid
+		self.gid = grp.getgrnam(self.group).gr_gid
+
+		print(f"Job {self} will run as {self.user}({self.uid}):{self.group}({self.gid})")
 
 	def __repr__(self):
 		return self.name
@@ -138,6 +167,7 @@ def get_args():
 	parser.add_argument('-s', '--sleep', type=float, default=1, help='Sleep period (for modules which polls)')
 	parser.add_argument('--policy', nargs=2, metavar=('JOB','POLICY'), action='append', help='policy what to do when request comes when job is running. Either "ignore" or "asap"')
 	parser.add_argument('-a','--activate', metavar='JOB', action='store', nargs='+', default=def_activate, help='activate these jobs with their default parameters')
+	parser.add_argument('-u','--user', metavar=('JOB', 'USER', 'GROUP'), nargs=3, action='append', help='run this job as USER')
 
 	for hook in hooks:
 		hook.add_argument_group(parser)
@@ -202,6 +232,9 @@ def main():
 				job_command = shlex.split(job_command[0])
 
 			jobs[job_name] = Job(job_name, job_command)
+			for uj in args.user:
+				if uj[0]==job_name:
+					jobs[job_name].set_user_group(uj[1], uj[2])
 
 	if args.policy:
 		for name, policy in args.policy:

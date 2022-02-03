@@ -1,0 +1,12 @@
+[Unit]
+Description=Hoocron
+
+[Service]
+Type=simple
+User=root
+Group=root
+EnvironmentFile=-/etc/default/hoocron
+ExecStart=/usr/local/bin/hoocron -p TICK 10
+
+[Install]
+WantedBy=multi-user.target
